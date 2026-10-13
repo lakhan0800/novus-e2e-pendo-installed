@@ -8,6 +8,7 @@ declare global {
         visitor: { id: string; email?: string; role?: string };
         account: { id: string; name?: string };
       }) => void;
+      track: (event: string, properties?: Record<string, unknown>) => void;
     };
   }
 }
@@ -20,22 +21,45 @@ interface Agent {
   teamName: string;
 }
 
-function TicketsPage() {
+interface PageProps {
+  agent: Agent | null;
+}
+
+function TicketsPage({ agent }: PageProps) {
   return (
     <section>
       <h1>Tickets</h1>
-      <button id="new-ticket-button" type="button">
+      <button
+        id="new-ticket-button"
+        type="button"
+        onClick={() => {
+          // Track Event: the agent started creating a new support ticket.
+          window.pendo?.track("Ticket Creation Started", {
+            agent_role: agent?.role ?? "unknown",
+          });
+        }}
+      >
         New ticket
       </button>
     </section>
   );
 }
 
-function ReportsPage() {
+function ReportsPage({ agent }: PageProps) {
   return (
     <section>
       <h1>Reports</h1>
-      <button id="export-report-button" type="button">
+      <button
+        id="export-report-button"
+        type="button"
+        onClick={() => {
+          // Track Event: the agent requested a CSV export of the report.
+          window.pendo?.track("Report Export Requested", {
+            export_format: "csv",
+            agent_role: agent?.role ?? "unknown",
+          });
+        }}
+      >
         Export CSV
       </button>
     </section>
@@ -65,8 +89,8 @@ export function App() {
         <span>{agent?.email}</span>
       </nav>
       <Routes>
-        <Route path="/" element={<TicketsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/" element={<TicketsPage agent={agent} />} />
+        <Route path="/reports" element={<ReportsPage agent={agent} />} />
       </Routes>
     </div>
   );
