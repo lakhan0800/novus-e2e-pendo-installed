@@ -9,6 +9,7 @@ declare global {
         visitor: { id: string; email?: string; role?: string };
         account: { id: string; name?: string };
       }) => void;
+      track?: (eventName: string, properties?: Record<string, string | number | boolean>) => void;
     };
   }
 }
@@ -69,7 +70,7 @@ export function App() {
         <Route path="/" element={<TicketsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
       </Routes>
-      <AssistantPanel />
+      <AssistantPanel agentRole={agent?.role} teamId={agent?.teamId} />
     </div>
   );
 }
