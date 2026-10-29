@@ -17,12 +17,32 @@ export function AssistantPanel() {
     event.preventDefault();
     if (!input.trim()) return;
     const next = [...messages, { role: "user" as const, content: input }];
+    const promptLength = input.length;
+    const userTurnCount = next.filter((message) => message.role === "user").length;
     setMessages(next);
     setInput("");
     setPending(true);
+    const startedAt = Date.now();
     try {
       const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
       setMessages([...next, { role: "assistant", content: reply.reply }]);
+      // Pendo: assistant backend returned a reply. Counts/timings only — no message text (PII).
+      window.pendo?.track("ai_assistant_response_received", {
+        conversation_message_count: next.length + 1,
+        user_turn_count: userTurnCount,
+        prompt_length: promptLength,
+        reply_length: reply.reply.length,
+        latency_ms: Date.now() - startedAt,
+      });
+    } catch (error) {
+      // Pendo: assistant request failed (non-2xx or network error).
+      window.pendo?.track("ai_assistant_response_failed", {
+        conversation_message_count: next.length,
+        user_turn_count: userTurnCount,
+        error_message: (error instanceof Error ? error.message : String(error)).slice(0, 100),
+        latency_ms: Date.now() - startedAt,
+      });
+      throw error;
     } finally {
       setPending(false);
     }
