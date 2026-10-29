@@ -7,7 +7,7 @@ interface AssistantMessage {
 }
 
 /** Chat panel backed by /api/assistant (LLM-backed in full Taskly stack). */
-export function AssistantPanel() {
+export function AssistantPanel({ agentRole, teamId }: { agentRole?: string; teamId?: string }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
@@ -20,9 +20,21 @@ export function AssistantPanel() {
     setMessages(next);
     setInput("");
     setPending(true);
+    // Outcome of the Brightdesk AI request, fired once per send on success or failure.
+    const trackReply = (success: boolean) =>
+      window.pendo?.track("brightdesk_ai_reply_received", {
+        success,
+        messageCount: next.length,
+        ...(agentRole ? { agentRole } : {}),
+        ...(teamId ? { teamId } : {}),
+      });
     try {
       const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
+      trackReply(true);
       setMessages([...next, { role: "assistant", content: reply.reply }]);
+    } catch (err) {
+      trackReply(false);
+      throw err;
     } finally {
       setPending(false);
     }
