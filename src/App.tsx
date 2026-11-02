@@ -52,7 +52,7 @@ export function App() {
       .then((me: Agent) => {
         setAgent(me);
         window.pendo?.initialize({
-          visitor: { id: me.id, email: me.email, role: me.role },
+          visitor: { id: me.id, role: me.role },
           account: { id: me.teamId, name: me.teamName },
         });
       });
