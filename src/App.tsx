@@ -9,6 +9,7 @@ declare global {
         visitor: { id: string; email?: string; role?: string };
         account: { id: string; name?: string };
       }) => void;
+      track: (event: string, properties?: Record<string, string | number | boolean>) => void;
     };
   }
 }

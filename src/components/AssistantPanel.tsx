@@ -6,6 +6,15 @@ interface AssistantMessage {
   content: string;
 }
 
+/**
+ * Extracts the HTTP status from api client errors ("POST /api/assistant failed with 503").
+ * Anything else (e.g. a fetch network failure) is reported as "network_error".
+ */
+function getErrorStatus(error: unknown): string {
+  const match = error instanceof Error ? /failed with (\d{3})$/.exec(error.message) : null;
+  return match ? match[1] : "network_error";
+}
+
 /** Chat panel backed by /api/assistant (LLM-backed in full Taskly stack). */
 export function AssistantPanel() {
   const [open, setOpen] = useState(false);
@@ -20,9 +29,28 @@ export function AssistantPanel() {
     setMessages(next);
     setInput("");
     setPending(true);
+    // Only lengths/counts are tracked — never raw message content (may contain customer PII).
+    const promptLength = input.length;
+    const startedAt = performance.now();
     try {
       const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
       setMessages([...next, { role: "assistant", content: reply.reply }]);
+      // Pendo Track Event: the AI assistant answered and the reply was added to the conversation.
+      window.pendo?.track("assistant_response_received", {
+        message_count: next.length + 1,
+        prompt_length: promptLength,
+        reply_length: reply.reply.length,
+        latency_ms: Math.round(performance.now() - startedAt),
+      });
+    } catch (error) {
+      // Pendo Track Event: the /api/assistant request failed (non-OK HTTP status or network error).
+      window.pendo?.track("assistant_request_failed", {
+        message_count: next.length,
+        prompt_length: promptLength,
+        error_status: getErrorStatus(error),
+        latency_ms: Math.round(performance.now() - startedAt),
+      });
+      throw error;
     } finally {
       setPending(false);
     }
