@@ -23,6 +23,11 @@ export function AssistantPanel() {
     try {
       const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
       setMessages([...next, { role: "assistant", content: reply.reply }]);
+      // Track that /api/assistant answered and the reply was added to the conversation.
+      window.pendo?.track("Assistant reply received", {
+        conversation_length: next.length + 1,
+        reply_length: reply.reply.length,
+      });
     } finally {
       setPending(false);
     }
