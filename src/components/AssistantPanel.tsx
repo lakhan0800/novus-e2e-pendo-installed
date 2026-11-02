@@ -23,6 +23,12 @@ export function AssistantPanel() {
     try {
       const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
       setMessages([...next, { role: "assistant", content: reply.reply }]);
+      // Track a successful AI reply being added to the conversation (failed sends throw above).
+      window.pendo?.track("Assistant reply received", {
+        message_count: next.length + 1,
+        prompt_length: input.length,
+        reply_length: reply.reply.length,
+      });
     } finally {
       setPending(false);
     }
