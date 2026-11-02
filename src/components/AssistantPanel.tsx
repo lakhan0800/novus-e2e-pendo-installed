@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
 
+const PENDO_AGENT_ID = "48k2oeUwT0YepyKAa0Pwp51t9Ks";
+
 interface AssistantMessage {
+  id: string;
   role: "user" | "assistant";
   content: string;
 }
@@ -12,17 +15,40 @@ export function AssistantPanel() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [pending, setPending] = useState(false);
+  const [conversationId] = useState(() => crypto.randomUUID());
 
   const send = async (event: FormEvent) => {
     event.preventDefault();
     if (!input.trim()) return;
-    const next = [...messages, { role: "user" as const, content: input }];
+    const prompt: AssistantMessage = { id: crypto.randomUUID(), role: "user", content: input };
+    const next = [...messages, prompt];
     setMessages(next);
     setInput("");
     setPending(true);
+    window.pendo?.trackAgent?.("prompt", {
+      agentId: PENDO_AGENT_ID,
+      conversationId,
+      messageId: prompt.id,
+      content: prompt.content,
+      suggestedPrompt: false,
+      fileUploaded: false,
+    });
     try {
-      const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
-      setMessages([...next, { role: "assistant", content: reply.reply }]);
+      const reply = await api.post<{ reply: string }>("/api/assistant", {
+        messages: next.map(({ role, content }) => ({ role, content })),
+      });
+      const response: AssistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: reply.reply,
+      };
+      setMessages([...next, response]);
+      window.pendo?.trackAgent?.("agent_response", {
+        agentId: PENDO_AGENT_ID,
+        conversationId,
+        messageId: response.id,
+        content: response.content,
+      });
     } finally {
       setPending(false);
     }
