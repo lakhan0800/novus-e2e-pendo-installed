@@ -9,6 +9,7 @@ declare global {
         visitor: { id: string; email?: string; role?: string };
         account: { id: string; name?: string };
       }) => void;
+      trackAgent?: (eventType: string, metadata: object) => void;
     };
   }
 }
