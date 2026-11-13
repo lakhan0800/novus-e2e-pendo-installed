@@ -9,6 +9,7 @@ declare global {
         visitor: { id: string; email?: string; role?: string };
         account: { id: string; name?: string };
       }) => void;
+      track: (event: string, properties?: Record<string, string | number | boolean>) => void;
     };
   }
 }
@@ -20,6 +21,10 @@ interface Agent {
   teamId: string;
   teamName: string;
 }
+
+// Agent ids already reported via "Agent session loaded" in this page session. Module-level so it
+// survives remounts and StrictMode's double-invoked effects.
+const trackedSessionAgentIds = new Set<string>();
 
 function TicketsPage() {
   return (
@@ -55,6 +60,14 @@ export function App() {
           visitor: { id: me.id, email: me.email, role: me.role },
           account: { id: me.teamId, name: me.teamName },
         });
+        // Track that the signed-in agent's profile loaded and was identified to Pendo.
+        if (me.id && !trackedSessionAgentIds.has(me.id)) {
+          trackedSessionAgentIds.add(me.id);
+          window.pendo?.track("Agent session loaded", {
+            agent_role: me.role,
+            team_name: me.teamName,
+          });
+        }
       });
   }, []);
 
