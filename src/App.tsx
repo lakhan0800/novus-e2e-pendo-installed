@@ -9,9 +9,14 @@ declare global {
         visitor: { id: string; email?: string; role?: string };
         account: { id: string; name?: string };
       }) => void;
+      track: (event: string, properties?: Record<string, string | number | boolean>) => void;
     };
   }
 }
+
+// Module-level guard so "Agent session loaded" fires once per page load, even when
+// StrictMode double-invokes the effect or App remounts.
+let agentSessionTracked = false;
 
 interface Agent {
   id: string;
@@ -55,6 +60,15 @@ export function App() {
           visitor: { id: me.id, email: me.email, role: me.role },
           account: { id: me.teamId, name: me.teamName },
         });
+        // Track the start of the agent's session once they are identified to Pendo.
+        if (!agentSessionTracked) {
+          agentSessionTracked = true;
+          window.pendo?.track("Agent session loaded", {
+            role: me.role,
+            team_id: me.teamId,
+            team_name: me.teamName,
+          });
+        }
       });
   }, []);
 
