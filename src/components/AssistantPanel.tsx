@@ -20,9 +20,21 @@ export function AssistantPanel() {
     setMessages(next);
     setInput("");
     setPending(true);
+    const startedAt = Date.now();
     try {
       const reply = await api.post<{ reply: string }>("/api/assistant", { messages: next });
       setMessages([...next, { role: "assistant", content: reply.reply }]);
+      // Track that /api/assistant answered and the reply is shown in the panel.
+      try {
+        window.pendo?.track?.("Assistant reply received", {
+          response_time_ms: Date.now() - startedAt,
+          reply_length: reply.reply.length,
+          question_length: next[next.length - 1].content.length,
+          conversation_turns: next.filter((message) => message.role === "user").length,
+        });
+      } catch {
+        // Tracking must never break the assistant flow.
+      }
     } finally {
       setPending(false);
     }
